@@ -10,6 +10,8 @@ class Driver
     @time_between_frames = time_between_frames
     @looped = looped
 
+    @fps_time = Gosu.milliseconds
+
     n_matrices.times {|i| @matrices.push(Matrix.new(leds_per_row, 20, (i*60)+20))}
 
     setup
@@ -31,8 +33,8 @@ class Driver
       @last_frame_time = @time
     end
 
-    @matrices.each {|m| m.time = @time}
-    @matrices.each(&:update)
+    # puts "#{Gosu.milliseconds-@fps_time}"
+    @fps_time = Gosu.milliseconds
   end
 
   def setup
@@ -40,14 +42,25 @@ class Driver
   end
 
   def led(row, led, color, powered = false)
+    _led    = @matrices[row-1].leds[led-1]
     _color = colorize(color)
     sub_set = {
-      led:  @matrices[row-1].leds[led-1],
+      led:  _led,
       color: _color,
       powered: powered
     }
 
     @sub_frame.push(sub_set)
+  end
+
+  def row(matrix, *args)
+    led_count = @matrices[matrix-1].leds.count
+    args.count.times do |i|
+      powered = false if args[i].downcase == 'off'
+      powered = true if args[i].downcase != 'off'
+      led(matrix, i+1, args[i], powered)
+    end
+    frame
   end
 
   def frame
@@ -63,8 +76,12 @@ class Driver
     if color.is_a?(Gosu::Color)
       color
     elsif color.is_a?(String)
-      c = Chroma.paint(color).rgb
-      Gosu::Color.rgb(c.r, c.g, c.b)
+      if color.downcase == 'off'
+        Gosu::Color::WHITE
+      else
+        c = Chroma.paint(color).rgb
+        Gosu::Color.rgb(c.r, c.g, c.b)
+      end
     else
       Gosu::Color::WHITE
     end
